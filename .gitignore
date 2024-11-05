@@ -2,3 +2,6 @@
 /.vscode
 /.gdbinit
 /.cargo
+/*.db
+/*.db-shm
+/*.db-wal

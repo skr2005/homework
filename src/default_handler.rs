@@ -1,9 +1,12 @@
-use salvo::{
-    handler, Depot, FlowCtrl, Request, Response, Writer,
-};
+use salvo::{handler, Depot, FlowCtrl, Request, Response, Writer};
 
 use crate::app_response::AppResponse;
 
+/// 中间件，处理任何无返回体的结果
+/// 
+/// 主要用途：
+/// 1.  在请求不存在的接口时返回错误信息
+/// 2.  在接口（错误地）没有返回体的时候返回错误信息
 #[handler]
 pub async fn default_response_middleware(
     req: &mut Request,
@@ -16,24 +19,22 @@ pub async fn default_response_middleware(
     if body_size > 0 {
         return;
     }
-    'res: {
-        let Some(status_code) = res.status_code else {
-            break 'res AppResponse::<String>::internal_server_error(
-                "服务器错误：未返回有效信息",
-            );
-        };
-        AppResponse {
+
+    match res.status_code {
+        None => AppResponse::<String>::internal_server_error(
+            "服务器错误：未返回任何有效信息",
+        ),
+        Some(status_code) => AppResponse {
             status_code,
             content: status_code
                 .canonical_reason()
                 .unwrap_or(&format!(
-                    "未知的返回状态: {}",
+                    "空结果与未知返回状态: {}",
                     status_code.as_str()
                 ))
                 .into(),
-        }
+        },
     }
     .write(req, depot, res)
     .await;
-    return;
 }

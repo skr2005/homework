@@ -1,3 +1,7 @@
+//! salvo需要的service
+//!
+//! 这里定义了路由和中间件的结构
+
 use salvo::{Router, Service};
 
 use crate::{
@@ -16,5 +20,6 @@ pub fn app_service() -> Service {
                 .put(put_student)
                 .push(Router::with_path("list").get(get_student_list)),
         ),
-    ).hoop(default_response_middleware)
+    )
+    .hoop(default_response_middleware)
 }

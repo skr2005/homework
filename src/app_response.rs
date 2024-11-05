@@ -1,4 +1,4 @@
-use std::fmt::Display;
+//! 自定义handler返回结构
 
 use crate::config;
 use salvo::{
@@ -13,6 +13,16 @@ pub struct AppResponse<T: Serialize> {
 }
 
 impl<T: Serialize> AppResponse<T> {
+    pub fn new(
+        status_code: salvo::prelude::StatusCode,
+        content: impl Into<T>,
+    ) -> Self {
+        AppResponse {
+            status_code,
+            content: content.into(),
+        }
+    }
+
     pub fn ok(content: impl Into<T>) -> AppResponse<T> {
         AppResponse {
             status_code: StatusCode::OK,
@@ -48,33 +58,25 @@ impl<T: Serialize + Send> Writer for AppResponse<T> {
     }
 }
 
-pub struct AppUncaughtErrResponse {
-    pub description: String,
-}
+pub type AppStrResponse = AppResponse<String>;
 
-#[async_trait]
-impl Writer for AppUncaughtErrResponse {
-    async fn write(
-        mut self,
-        _req: &mut Request,
-        _depot: &mut Depot,
-        res: &mut Response,
-    ) {
-        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
-        res.render(Json(self.description));
-    }
-}
-
-impl<T: Display> From<T> for AppUncaughtErrResponse {
+impl<T: std::error::Error> From<T> for AppStrResponse {
     fn from(value: T) -> Self {
-        AppUncaughtErrResponse {
-            description: if config::log::EXPOSE_ERR {
+        AppResponse {
+            status_code: StatusCode::INTERNAL_SERVER_ERROR,
+            content: if config::log::EXPOSE_ERR {
                 format!("未处理的服务器错误：{}", value)
             } else {
-                "未处理的服务器错误".to_string()
+                "未处理的服务器错误".into()
             },
         }
     }
 }
 
-pub type AppResult<T> = Result<AppResponse<T>, AppUncaughtErrResponse>;
+pub type AppResult<T> = Result<AppResponse<T>, AppStrResponse>;
+
+impl<T: Serialize> From<AppResponse<T>> for AppResult<T> {
+    fn from(value: AppResponse<T>) -> Self {
+        Ok(value)
+    }
+}
